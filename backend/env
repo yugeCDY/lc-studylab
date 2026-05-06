@@ -1,0 +1,26 @@
+# OpenAI API 配置
+OPENAI_API_KEY=sk-df28b8205ecb407880ca7cf4ab7a30bd
+OPENAI_API_BASE=https://api.deepseek.com
+OPENAI_MODEL=deepseek-v4-flash
+
+
+# 高德天气 api-key
+AMAP_KEY=fefb7528f5408ab040dfac5e9149fd3c
+
+# Tavily 搜索 API（可选）
+TAVILY_API_KEY=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
+
+# 服务器配置
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8000
+SERVER_RELOAD=false
+
+# 日志配置
+LOG_LEVEL=DEBUG
+LOG_FILE=logs/app.log
+
+# 应用配置
+APP_NAME=LC-StudyLab
+APP_VERSION=0.1.0
+DEBUG=true
+
