@@ -235,7 +235,7 @@ async def get_info():
 if __name__ == "__main__":
     import uvicorn
     
-    logger.info("🔧 以开发模式启动服务器...")
+    logger.debug("🔧 以开发模式启动服务器...")
     
     uvicorn.run(
         "api.http_server:app",
@@ -243,5 +243,7 @@ if __name__ == "__main__":
         port=settings.server_port,
         reload=settings.server_reload,
         log_level=settings.log_level.lower(),
+        log_config=None,
+        reload_excludes=["logs/*", "*.log"],
     )
 

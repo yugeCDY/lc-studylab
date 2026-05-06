@@ -103,12 +103,15 @@ class BaseAgent:
         # ==================== 模型初始化 ====================
         # 在 LangChain V1.0.0 中，model 可以是字符串或 BaseChatModel 实例
         if model is None:
-            # 使用默认模型（从配置读取）
-            # create_agent 接受字符串格式，如 "openai:gpt-4o"
-            self.model = f"openai:{settings.openai_model}"
-            logger.info(f"🤖 使用默认模型: {self.model}")
+            # 使用 get_chat_model() 创建 ChatOpenAI 实例，自动读取 settings 中的
+            # api_key 和 base_url。DeepSeek 兼容 OpenAI 接口，所以用 ChatOpenAI + DeepSeek Base URL 即可
+            self.model = get_chat_model()
+            logger.info(
+                f"🤖 使用默认模型: {settings.openai_model} "
+                f"(base_url={settings.openai_api_base})"
+            )
         elif isinstance(model, str):
-            # 字符串标识符
+            # 字符串标识符，如 "openai:gpt-4o"
             self.model = model
             logger.info(f"🤖 使用模型标识符: {model}")
         else:

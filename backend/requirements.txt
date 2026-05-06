@@ -1,59 +1,60 @@
-# LangChain 核心包 - 严格使用 1.0.3 版本（宪法级别规定）
+# LangChain core packages
 langchain==1.0.3
-langchain-core==1.0.3
+langchain-core>=1.0.3
 langchain-openai==1.0.2
 langchain-community==0.4.1
 
-# LangGraph - 用于构建复杂工作流
-langgraph==1.0.2
-langgraph-checkpoint-sqlite==3.0.0  # SQLite 检查点支持
+# LangGraph
+langgraph==1.0.10
+langgraph-prebuilt==1.0.8
+langgraph-checkpoint>=3,<4
+langgraph-checkpoint-sqlite==3.0.0
 
-# LangChain 集成包
-langchain-tavily==0.2.13  # Tavily 搜索工具（V1.0.0 推荐）
+# LangChain integrations
+langchain-tavily==0.2.13
 
-# FastAPI 和服务器
+# FastAPI & server
 fastapi==0.121.0
 uvicorn[standard]==0.34.0
 
-# 数据验证 - Pydantic 2
+# Pydantic 2
 pydantic==2.12.4
 pydantic-settings==2.11.0
 
-# HTTP 客户端
+# HTTP client
 httpx[socks]==0.28.1
 
-# 环境变量管理
+# Env management
 python-dotenv==1.0.1
 
-# HTTP 客户端
+# HTTP client
 httpx==0.28.1
 
-# 工具相关
+# Tools
 tavily-python==0.5.0
 
-# 日志和监控
+# Logging
 loguru==0.7.3
 
-# ==================== RAG 相关依赖 ====================
-# 文本分块器
+# ==================== RAG dependencies ====================
 langchain-text-splitters==1.0.0
 
-# 向量数据库
-faiss-cpu==1.12.0          # FAISS 向量库（CPU 版本）
-# faiss-gpu==1.9.0.post1        # FAISS GPU 版本（可选，需要 CUDA）
+# Vector store
+faiss-cpu==1.12.0
+# faiss-gpu==1.9.0.post1
 
-# 文档加载器
-pypdf==5.1.0                    # PDF 文档加载
-unstructured==0.18.15           # 通用文档加载器
-markdown==3.7                   # Markdown 支持
-beautifulsoup4==4.12.3          # HTML 解析
-lxml==5.3.0                     # XML 解析
+# Document loaders
+pypdf==5.1.0
+unstructured==0.18.15
+markdown==3.7
+beautifulsoup4==4.12.3
+lxml==5.3.0
 
-# 文件处理
-python-multipart==0.0.20        # 文件上传支持（FastAPI）
-aiofiles==24.1.0                # 异步文件操作
+# File handling
+python-multipart==0.0.20
+aiofiles==24.1.0
 
-# CLI 工具
-click==8.1.8                    # 命令行接口框架
-rich==13.9.4                    # 终端美化输出
+# CLI tools
+click==8.1.8
+rich==13.9.4
 

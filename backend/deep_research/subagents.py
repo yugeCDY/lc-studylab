@@ -222,7 +222,7 @@ def create_report_writer(
     # 使用默认模型（可以使用更强大的模型）
     if model is None:
         # ReportWriter 使用主模型，确保报告质量
-        model = f"openai:{settings.openai_model}"
+        model = f"deepseek:{settings.openai_model}"
     
     # 配置工具：只需要文件系统工具
     if tools is None:

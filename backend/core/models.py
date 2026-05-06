@@ -78,6 +78,13 @@ def get_chat_model(
     # 合并额外的参数
     model_config.update(kwargs)
     
+    # DeepSeek 兼容处理：禁用 thinking/reasoning 模式
+    # thinking mode 会导致 Agent 工具调用循环报错，且不适用于 agent 场景
+    if "deepseek" in settings.openai_api_base.lower() or "deepseek" in model_name.lower():
+        model_config.setdefault("extra_body", {"thinking": {"type": "disabled"}})
+        # model_config["extra_body"].setdefault("thinking_mode", False)
+        logger.debug("🧠 DeepSeek thinking mode 已禁用")
+    
     logger.info(
         f"🤖 创建聊天模型: {model_name} "
         f"(temperature={temperature}, streaming={streaming})"
