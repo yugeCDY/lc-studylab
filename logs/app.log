@@ -1,0 +1,7 @@
+2026-05-06 22:08:27.614 | INFO     | config.logging:setup_logging:128 | 📝 日志系统初始化完成 - 级别: INFO, 文件: logs/app.log
+2026-05-06 23:00:28.015 | INFO     | config.logging:setup_logging:128 | 📝 日志系统初始化完成 - 级别: INFO, 文件: logs/app.log
+2026-05-06 23:00:29.879 | WARNING  | core.tools.web_search:<module>:28 | ⚠️ 使用旧的 langchain-community Tavily（已弃用），建议安装: pip install langchain-tavily
+2026-05-06 23:01:42.978 | INFO     | config.logging:setup_logging:128 | 📝 日志系统初始化完成 - 级别: INFO, 文件: logs/app.log
+2026-05-06 23:01:44.822 | INFO     | config.logging:setup_logging:128 | 📝 日志系统初始化完成 - 级别: INFO, 文件: logs/app.log
+2026-05-06 23:01:45.035 | WARNING  | core.tools.web_search:<module>:28 | ⚠️ 使用旧的 langchain-community Tavily（已弃用），建议安装: pip install langchain-tavily
+2026-05-06 23:01:45.044 | INFO     | core.tools.web_search:create_tavily_search_tool:82 | 🔍 创建 Tavily 搜索工具 (max_results=1, depth=basic)

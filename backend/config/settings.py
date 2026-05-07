@@ -3,9 +3,17 @@
 使用 Pydantic Settings 管理所有配置项，支持从环境变量和 .env 文件加载
 """
 
+from pathlib import Path
 from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_FILES = [
+    str(BASE_DIR / ".env"),
+    str(BASE_DIR / "api" / ".env"),
+]
 
 
 class Settings(BaseSettings):
@@ -235,7 +243,7 @@ class Settings(BaseSettings):
     
     # Pydantic Settings 配置
     model_config = SettingsConfigDict(
-        env_file=".env",  # 从 .env 文件加载
+        env_file=ENV_FILES,  # 优先从 backend/.env 加载，兼容 backend/api/.env
         env_file_encoding="utf-8",
         case_sensitive=False,  # 环境变量不区分大小写
         extra="ignore",  # 忽略额外的环境变量

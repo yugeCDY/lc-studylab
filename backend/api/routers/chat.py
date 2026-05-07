@@ -18,6 +18,7 @@ import asyncio
 import time
 
 from agents import create_base_agent
+from core.prompts import get_prompt_with_tools, get_system_prompt
 from core.tools import BASIC_TOOLS, WEB_SEARCH_TOOLS, WEATHER_TOOLS
 from deep_research import create_deep_research_agent
 from config import settings, get_logger
@@ -175,6 +176,104 @@ def convert_chat_history(messages: Optional[List[Message]]) -> List:
     return langchain_messages
 
 
+def build_tool_reasoning_summary(
+    user_message: str,
+    tool_name: str,
+    tool_args: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    生成“工具调用前的可展示摘要”。
+
+    注意：这里输出的是安全的执行摘要，不是模型的原始内部思维链。
+    """
+    tool_args = tool_args or {}
+
+    tool_purpose_map = {
+        "get_current_time": "为了回答时间相关问题，先读取当前时间。",
+        "calculator": "为了保证计算结果准确，先调用计算工具。",
+        "web_search": "为了补充最新信息，先执行网络搜索。",
+        "search_web": "为了补充最新信息，先执行网络搜索。",
+        "tavily_search": "为了补充最新信息，先执行网络搜索。",
+        "get_weather": "为了回答天气问题，先查询天气数据。",
+        "get_daily_weather": "为了回答天气问题，先查询天气数据。",
+        "get_weather_forecast": "为了回答天气问题，先查询天气预报数据。",
+    }
+
+    purpose = tool_purpose_map.get(
+        tool_name,
+        "为了更准确地回答问题，先调用相关工具获取信息。"
+    )
+
+    summary = {
+        "content": purpose,
+        "tool": tool_name,
+        "userMessage": user_message[:200],
+        "parameters": tool_args,
+        "duration": 0,
+    }
+
+    if tool_args:
+        summary["content"] += f" 参数：{json.dumps(tool_args, ensure_ascii=False)}"
+
+    return summary
+
+
+def log_tool_reasoning_summary(
+    user_message: str,
+    tool_name: str,
+    tool_args: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    在服务端控制台打印工具调用前的执行摘要。
+    """
+    summary = build_tool_reasoning_summary(
+        user_message=user_message,
+        tool_name=tool_name,
+        tool_args=tool_args,
+    )
+    logger.info(
+        "🧠 工具调用前思路 | tool={} | summary={} | user={} | args={}".format(
+            summary["tool"],
+            summary["content"],
+            summary["userMessage"],
+            json.dumps(summary["parameters"], ensure_ascii=False),
+        )
+    )
+
+
+def should_format_as_briefing(message: str) -> bool:
+    """
+    判断是否应将搜索结果整理为工整简报。
+    """
+    if not message:
+        return False
+    keywords = ["新闻", "简报", "汇总", "总结", "盘点", "热点", "最新动态"]
+    return any(keyword in message for keyword in keywords)
+
+
+def build_search_result_format_instructions(user_message: str) -> str:
+    """
+    为搜索类请求生成额外的格式化输出要求。
+    """
+    if should_format_as_briefing(user_message):
+        return (
+            "当你使用搜索工具后，不要原样复述搜索结果，也不要输出零散链接列表。"
+            "请在拿到搜索结果后，整理成工整、可直接阅读的中文简报。\n\n"
+            "输出格式要求：\n"
+            "1. 先给一个简短标题。\n"
+            "2. 然后给“今日要点”小节，使用 3-5 条要点列表。\n"
+            "3. 每条要点包含：事件名 + 一句话摘要。\n"
+            "4. 如信息来源较多，可在最后补一个“补充说明”小节，用 1-2 句话总结整体趋势。\n"
+            "5. 除非用户明确要求，不要输出原始搜索结果、抓取片段或长链接。\n"
+            "6. 语言简洁、工整，适合直接展示到网页端。"
+        )
+
+    return (
+        "当你使用搜索工具后，请先综合和整理搜索结果，再输出给用户。"
+        "不要直接堆砌原始搜索片段，要把信息组织成清晰、工整、可读的答案。"
+    )
+
+
 # ==================== API 端点 ====================
 
 @router.post("/", response_model=ChatResponse)
@@ -277,7 +376,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, http_request: Request):
     """
     流式聊天接口（SSE - Server-Sent Events）- 增强版
     
@@ -368,11 +467,27 @@ async def chat_stream(request: ChatRequest):
             tools = get_tools_for_request(request.use_tools, request.use_advanced_tools)
             tool_names = [tool.name for tool in tools]
             weather_tool_names = {tool.name for tool in WEATHER_TOOLS}
+            web_search_tool_names = {tool.name for tool in WEB_SEARCH_TOOLS}
             
             # 创建 Agent（启用流式）
+            web_tool_name_set = {tool.name for tool in WEB_SEARCH_TOOLS}
+            has_web_search_tools = any(tool.name in web_tool_name_set for tool in tools)
+            custom_system_prompt = None
+            if has_web_search_tools:
+                base_prompt = (
+                    get_prompt_with_tools(request.mode)
+                    if tools else
+                    get_system_prompt(request.mode)
+                )
+                custom_system_prompt = (
+                    f"{base_prompt}\n\n"
+                    f"{build_search_result_format_instructions(request.message)}"
+                )
+
             agent = create_base_agent(
                 tools=tools,
                 prompt_mode=request.mode,
+                system_prompt=custom_system_prompt,
             )
             
             # 转换对话历史
@@ -427,6 +542,7 @@ async def chat_stream(request: ChatRequest):
                         for tool_call in tool_calls:
                             tool_id = tool_call.get("id", "")
                             tool_name = tool_call.get("name", "")
+                            tool_args = tool_call.get("args", {})
                             
                             # 追踪工具调用次数
                             if tool_name not in tool_call_count:
@@ -442,11 +558,18 @@ async def chat_stream(request: ChatRequest):
                                 "name": tool_name,
                                 "type": f"tool-call-{tool_name}",
                                 "state": "input-available",
-                                "parameters": tool_call.get("args", {}),
+                                "parameters": tool_args,
                                 "result": None,
                                 "error": None,
                             }
                             tool_calls_map[tool_id] = tool_info
+
+                            # 在服务端控制台打印工具调用前的执行摘要
+                            log_tool_reasoning_summary(
+                                user_message=request.message,
+                                tool_name=tool_name,
+                                tool_args=tool_args,
+                            )
                             
                             # 发送工具调用事件
                             yield f"data: {json.dumps({'type': 'tool', 'data': tool_info}, ensure_ascii=False)}\n\n"
@@ -482,8 +605,10 @@ async def chat_stream(request: ChatRequest):
                     
                     if tool_call_id in tool_calls_map:
                         tool_info = tool_calls_map[tool_call_id]
+                        hide_tool_result = tool_info.get("name") in web_search_tool_names
+                        tool_result_content = message.content
                         tool_info["state"] = "output-error" if is_error else "output-available"
-                        tool_info["result"] = None if is_error else message.content
+                        tool_info["result"] = None if (is_error or hide_tool_result) else tool_result_content
                         tool_info["error"] = message.content if is_error else None
                         
                         # 发送工具结果更新
@@ -511,8 +636,10 @@ async def chat_stream(request: ChatRequest):
                             tool_info["delivered"] = True
                             prefer_tool_result = True
                 
-                # 小延迟
-                await asyncio.sleep(0.01)
+                # 如果客户端已经断开，则尽快停止上游流，避免后续清理阶段出现噪音日志
+                if await http_request.is_disconnected():
+                    logger.info("🔌 客户端已断开，提前结束流式响应")
+                    return
             
             # 从所有消息中提取最终回复
             # 优先查找最后一条有内容的 AI 消息
@@ -574,72 +701,6 @@ async def chat_stream(request: ChatRequest):
                         logger.info(f"✅ 使用工具 {tool_info.get('name')} 的结果作为最终回复")
                         break
 
-            def _needs_completion(text: str) -> bool:
-                if not text:
-                    return True
-                t = text.strip()
-                if len(t) < 30:
-                    return True
-                if not any(t.endswith(p) for p in ["。", "！", "？", ".", "!", "?"]):
-                    return True
-                return False
-
-            if not prefer_tool_result and _needs_completion(current_message_content):
-                from core.models import get_chat_model
-                model = get_chat_model()
-                prompt = (
-                    f"用户问题：{request.message}\n\n"
-                    f"当前回复（不完整）：{current_message_content}\n\n"
-                    "请继续并完整回答上述问题，补充必要的解释或例子，最后给出一句简明结论。"
-                )
-                try:
-                    completion = await model.ainvoke([{ "role": "user", "content": prompt }])
-                    extra = getattr(completion, "content", "")
-                    if extra:
-                        chunk_data = {
-                            "type": "chunk",
-                            "content": extra,
-                        }
-                        yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
-                        current_message_content += extra
-                except Exception:
-                    pass
-            
-            # 生成动态建议（基于用户问题与最终助手回复）
-            try:
-                from core.models import get_chat_model
-                model = get_chat_model()
-                suggestions_prompt = (
-                    "你是一个辅助对话的助手。请根据以下用户问题和最终回复，生成4条简洁、相关、可点击的后续问题建议。\n"
-                    "用JSON数组返回，每个元素是不超过30字的中文字符串，不要包含编号或多余文本。\n\n"
-                    f"用户问题：{request.message}\n\n"
-                    f"最终回复：{current_message_content}"
-                )
-                completion = await model.ainvoke([{ "role": "user", "content": suggestions_prompt }])
-                raw = getattr(completion, "content", "")
-                suggestions: list[str] = []
-                try:
-                    parsed = json.loads(raw)
-                    if isinstance(parsed, list):
-                        suggestions = [str(x) for x in parsed if isinstance(x, (str, int, float))]
-                        suggestions = [s for s in suggestions if s.strip()][:4]
-                except Exception:
-                    # 尝试提取JSON片段
-                    import re
-                    m = re.search(r"\[.*\]", raw, re.DOTALL)
-                    if m:
-                        try:
-                            parsed2 = json.loads(m.group(0))
-                            if isinstance(parsed2, list):
-                                suggestions = [str(x) for x in parsed2 if isinstance(x, (str, int, float))]
-                                suggestions = [s for s in suggestions if s.strip()][:4]
-                        except Exception:
-                            suggestions = []
-                if suggestions:
-                    yield f"data: {json.dumps({'type': 'suggestions', 'data': suggestions}, ensure_ascii=False)}\n\n"
-            except Exception:
-                pass
-
             # 发送最终的 context 信息
             context_info = usage_tracker.get_usage_info()
             yield f"data: {json.dumps({'type': 'context', 'data': context_info}, ensure_ascii=False)}\n\n"
@@ -650,6 +711,10 @@ async def chat_stream(request: ChatRequest):
             # 打印统计
             usage_tracker.log_summary()
             logger.info("✅ 流式聊天请求处理完成")
+
+        except asyncio.CancelledError:
+            logger.info("🔌 流式响应已取消")
+            return
             
         except Exception as e:
             error_msg = f"流式处理出错: {str(e)}"

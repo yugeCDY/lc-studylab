@@ -31,6 +31,11 @@ except ImportError:
         USING_NEW_TAVILY = False
         logger.error("❌ 未安装 Tavily 搜索工具，请安装: pip install langchain-tavily")
 
+try:
+    from langchain_community.utilities.tavily_search import TavilySearchAPIWrapper
+except ImportError:
+    TavilySearchAPIWrapper = None
+
 
 def create_tavily_search_tool(
     max_results: Optional[int] = None,
@@ -84,6 +89,14 @@ def create_tavily_search_tool(
         "api_key": settings.tavily_api_key,
     }
     
+    # 旧版本的 TavilySearchResults 会通过默认工厂创建 TavilySearchAPIWrapper，
+    # 该工厂优先从真实环境变量读取 tavily_api_key。这里显式注入 wrapper，
+    # 避免明明 settings 里有 key 却仍然报缺失。
+    if not USING_NEW_TAVILY and TavilySearchAPIWrapper is not None:
+        tool_kwargs["api_wrapper"] = TavilySearchAPIWrapper(
+            tavily_api_key=settings.tavily_api_key
+        )
+
     # 新版本的 langchain-tavily 参数不同
     if USING_NEW_TAVILY:
         # 新版本使用不同的参数名

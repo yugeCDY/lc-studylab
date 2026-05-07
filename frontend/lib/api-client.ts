@@ -2,7 +2,14 @@
  * API 客户端 - 封装对 Python 后端的 HTTP 调用
  */
 
-import { ChatRequest, ChatResponse, AgentMode } from './types';
+import {
+  ChatRequest,
+  ChatResponse,
+  RagIndexInfo,
+  RagQueryResponse,
+  RagSearchResult,
+  RagUploadResponse,
+} from './types';
 
 // 后端 API 基础 URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -72,11 +79,24 @@ export async function chatStream(chatRequest: ChatRequest): Promise<Response> {
  */
 export async function buildRagIndex(params: {
   indexName: string;
-  documentPath: string;
-}): Promise<{ success: boolean; message: string }> {
-  return request('/rag/index', {
+  uploadedSubdir?: string;
+  directoryPath?: string;
+  description?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  overwrite?: boolean;
+}): Promise<RagIndexInfo> {
+  return request<RagIndexInfo>('/rag/index', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify({
+      name: params.indexName,
+      uploaded_subdir: params.uploadedSubdir,
+      directory_path: params.directoryPath,
+      description: params.description ?? '',
+      chunk_size: params.chunkSize,
+      chunk_overlap: params.chunkOverlap,
+      overwrite: params.overwrite ?? false,
+    }),
   });
 }
 
@@ -87,10 +107,80 @@ export async function queryRag(params: {
   indexName: string;
   query: string;
   topK?: number;
-}): Promise<ChatResponse> {
-  return request('/rag/query', {
+  returnSources?: boolean;
+}): Promise<RagQueryResponse> {
+  return request<RagQueryResponse>('/rag/query', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify({
+      index_name: params.indexName,
+      query: params.query,
+      k: params.topK ?? 4,
+      return_sources: params.returnSources ?? true,
+    }),
+  });
+}
+
+export async function listRagIndexes(): Promise<RagIndexInfo[]> {
+  return request<RagIndexInfo[]>('/rag/index/list', {
+    method: 'GET',
+  });
+}
+
+export async function deleteRagIndex(indexName: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/rag/index/${encodeURIComponent(indexName)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function uploadRagDocuments(files: File[]): Promise<RagUploadResponse> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+
+  const response = await fetch(`${API_BASE_URL}/rag/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateRagIndex(params: {
+  indexName: string;
+  uploadedSubdir?: string;
+  directoryPath?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
+}): Promise<RagIndexInfo> {
+  return request<RagIndexInfo>(`/rag/index/${encodeURIComponent(params.indexName)}/update`, {
+    method: 'POST',
+    body: JSON.stringify({
+      uploaded_subdir: params.uploadedSubdir,
+      directory_path: params.directoryPath,
+      chunk_size: params.chunkSize,
+      chunk_overlap: params.chunkOverlap,
+    }),
+  });
+}
+
+export async function searchRag(params: {
+  indexName: string;
+  query: string;
+  topK?: number;
+  scoreThreshold?: number;
+}): Promise<RagSearchResult[]> {
+  return request<RagSearchResult[]>('/rag/search', {
+    method: 'POST',
+    body: JSON.stringify({
+      index_name: params.indexName,
+      query: params.query,
+      k: params.topK ?? 4,
+      score_threshold: params.scoreThreshold,
+    }),
   });
 }
 

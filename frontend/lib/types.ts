@@ -231,6 +231,47 @@ export interface ChatResponse {
   error?: string;
 }
 
+export interface RagIndexInfo {
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  num_documents: number;
+  store_type: string;
+  embedding_model: string;
+  path?: string;
+  size_bytes?: number;
+  size_mb?: number;
+}
+
+export interface RagUploadedFileInfo {
+  filename: string;
+  saved_path: string;
+  size_bytes: number;
+}
+
+export interface RagUploadResponse {
+  success: boolean;
+  message: string;
+  target_directory: string;
+  files: RagUploadedFileInfo[];
+}
+
+export interface RagSearchResult {
+  content: string;
+  metadata: Record<string, any>;
+  score?: number | null;
+}
+
+export interface RagQueryResponse {
+  answer: string;
+  sources: string[];
+  retrieved_documents: Array<{
+    content: string;
+    metadata: Record<string, any>;
+  }>;
+}
+
 // 模型配置
 export interface ModelConfig {
   provider: "openai" | "anthropic" | "google" | "deepseek";

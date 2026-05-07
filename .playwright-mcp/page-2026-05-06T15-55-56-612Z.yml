@@ -1,0 +1,132 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - heading "LC-StudyLab" [level=1] [ref=e7]
+          - generic [ref=e8]: 智能学习 & 研究助手
+        - button "切换主题" [ref=e10]:
+          - img
+          - generic [ref=e11]: 切换主题
+    - generic [ref=e12]:
+      - complementary [ref=e13]:
+        - generic [ref=e16]:
+          - link "LC-StudyLab" [ref=e18] [cursor=pointer]:
+            - /url: /
+            - heading "LC-StudyLab" [level=2] [ref=e19]
+          - button "新建对话" [ref=e20]:
+            - img
+            - text: 新建对话
+          - generic [ref=e21]:
+            - link "Chat" [ref=e22] [cursor=pointer]:
+              - /url: /chat
+              - generic [ref=e23]:
+                - img [ref=e24]
+                - text: Chat
+            - link "RAG 知识库" [ref=e26] [cursor=pointer]:
+              - /url: /rag
+              - generic [ref=e27]:
+                - img [ref=e28]
+                - text: RAG 知识库
+            - link "工作流" [ref=e30] [cursor=pointer]:
+              - /url: /workflows
+              - generic [ref=e31]:
+                - img [ref=e32]
+                - text: 工作流
+            - link "深度研究" [ref=e36] [cursor=pointer]:
+              - /url: /deep-research
+              - generic [ref=e37]:
+                - img [ref=e38]
+                - text: 深度研究
+            - link "设置" [ref=e41] [cursor=pointer]:
+              - /url: /settings
+              - generic [ref=e42]:
+                - img [ref=e43]
+                - text: 设置
+          - heading "最近会话" [level=3] [ref=e47]
+      - main [ref=e50]:
+        - generic [ref=e52]:
+          - generic [ref=e54]:
+            - generic [ref=e55]:
+              - generic [ref=e56]: Enterprise Knowledge Desk
+              - generic [ref=e57]:
+                - heading "RAG 知识库工作台" [level=1] [ref=e58]
+                - paragraph [ref=e59]: 面向企业内部资料的上传、建库、检索与追问。保持和 Chat 菜单一致的问答节奏，同时把资料资产、索引状态和回答依据放到同一个工作面板里。
+            - generic [ref=e60]:
+              - generic [ref=e61]:
+                - generic [ref=e62]:
+                  - generic [ref=e63]: 知识库总数
+                  - img [ref=e65]
+                - generic [ref=e69]: "0"
+              - generic [ref=e70]:
+                - generic [ref=e71]:
+                  - generic [ref=e72]: 已索引片段
+                  - img [ref=e74]
+                - generic [ref=e76]: "0"
+              - generic [ref=e77]:
+                - generic [ref=e78]:
+                  - generic [ref=e79]: 检索结果
+                  - img [ref=e81]
+                - generic [ref=e86]: "0"
+              - generic [ref=e87]:
+                - generic [ref=e88]:
+                  - generic [ref=e89]: 索引体积
+                  - img [ref=e91]
+                - generic [ref=e94]: 0.0 MB
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - generic [ref=e98]:
+                  - generic [ref=e99]: 资料上传与建库
+                  - generic [ref=e100]: 先上传资料，再新建知识库或增量追加到现有索引。
+                - generic [ref=e101]:
+                  - generic [ref=e102]:
+                    - generic [ref=e103]:
+                      - img [ref=e105]
+                      - generic [ref=e108]:
+                        - generic [ref=e109]: 上传企业资料
+                        - generic [ref=e110]: 支持 PDF、Markdown、TXT、HTML、JSON
+                    - button "Choose File" [ref=e111] [cursor=pointer]
+                  - generic [ref=e112]:
+                    - textbox "知识库名称，例如 hr-policy-2026" [ref=e113]
+                    - textbox "补充说明知识库用途、适用部门或资料范围" [ref=e114]
+                    - generic [ref=e115]:
+                      - button "新建知识库" [disabled]:
+                        - img
+                        - text: 新建知识库
+                      - button "追加到当前知识库" [disabled]:
+                        - img
+                        - text: 追加到当前知识库
+              - generic [ref=e116]:
+                - generic [ref=e117]:
+                  - generic [ref=e118]: 知识库列表
+                  - generic [ref=e119]: 选择一个索引作为当前检索和问答的工作上下文。
+                - generic [ref=e121]:
+                  - img [ref=e122]
+                  - text: 正在加载知识库...
+            - generic [ref=e124]:
+              - generic [ref=e126]:
+                - generic [ref=e127]:
+                  - heading "知识检索与追问" [level=2] [ref=e129]
+                  - paragraph [ref=e130]: 先做纯检索确认资料命中，再切到问答视角生成可追溯的答案。
+                - generic [ref=e131]:
+                  - generic [ref=e132]: 回答策略
+                  - generic [ref=e133]: 仅基于当前知识库返回结果，并在答案下方保留来源引用。
+              - generic [ref=e134]:
+                - tablist [ref=e136]:
+                  - tab "问答工作台" [selected] [ref=e137]
+                  - tab "纯检索预览" [ref=e138]
+                - tabpanel "问答工作台" [ref=e139]:
+                  - generic [ref=e142]:
+                    - img [ref=e144]
+                    - heading "围绕企业资料直接追问" [level=3] [ref=e146]
+                    - paragraph [ref=e147]: 适合制度条款核对、培训资料追问、产品知识确认和项目文档问答。建议先选定知识库，再输入明确问题。
+                  - group [ref=e151]:
+                    - textbox "请先在左侧选择一个知识库" [disabled] [ref=e153]
+                    - group [ref=e154]:
+                      - generic [ref=e156]: 当前范围：未选择知识库
+                      - button "Submit" [disabled]:
+                        - img
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e162] [cursor=pointer]:
+    - img [ref=e163]

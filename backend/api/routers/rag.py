@@ -11,6 +11,8 @@ RAG API 路由
 """
 
 import os
+import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -32,6 +34,7 @@ from rag import (
 )
 
 logger = get_logger(__name__)
+BACKEND_BASE_DIR = Path(__file__).resolve().parents[2]
 
 # 创建路由器
 router = APIRouter(prefix="/rag", tags=["RAG"])
@@ -45,7 +48,8 @@ index_manager = IndexManager()
 class CreateIndexRequest(BaseModel):
     """创建索引请求"""
     name: str = Field(..., description="索引名称")
-    directory_path: str = Field(..., description="文档目录路径")
+    directory_path: Optional[str] = Field(default=None, description="文档目录路径")
+    uploaded_subdir: Optional[str] = Field(default=None, description="上传子目录名称")
     description: str = Field(default="", description="索引描述")
     chunk_size: Optional[int] = Field(default=None, description="分块大小")
     chunk_overlap: Optional[int] = Field(default=None, description="分块重叠")
@@ -93,6 +97,53 @@ class SearchResult(BaseModel):
     score: Optional[float] = None
 
 
+class UploadedFileInfo(BaseModel):
+    """上传文件信息"""
+    filename: str
+    saved_path: str
+    size_bytes: int
+
+
+class UploadDocumentsResponse(BaseModel):
+    """上传文档响应"""
+    success: bool
+    message: str
+    target_directory: str
+    files: List[UploadedFileInfo]
+
+
+class UpdateIndexRequest(BaseModel):
+    """增量更新索引请求"""
+    directory_path: Optional[str] = Field(default=None, description="文档目录路径")
+    uploaded_subdir: Optional[str] = Field(default=None, description="上传子目录名称")
+    chunk_size: Optional[int] = Field(default=None, description="分块大小")
+    chunk_overlap: Optional[int] = Field(default=None, description="分块重叠")
+
+
+def _resolve_source_directory(
+    directory_path: Optional[str] = None,
+    uploaded_subdir: Optional[str] = None,
+) -> Path:
+    """解析用于建库或更新索引的源目录"""
+    if uploaded_subdir:
+        upload_base = (BACKEND_BASE_DIR / settings.data_uploads_path).resolve()
+        target = (upload_base / uploaded_subdir).resolve()
+        if not str(target).startswith(str(upload_base)):
+            raise HTTPException(status_code=400, detail="非法的上传目录")
+        return target
+
+    if directory_path:
+        raw_path = Path(directory_path)
+        if raw_path.is_absolute():
+            return raw_path
+        return (BACKEND_BASE_DIR / raw_path).resolve()
+
+    raise HTTPException(
+        status_code=400,
+        detail="必须提供 directory_path 或 uploaded_subdir",
+    )
+
+
 # ==================== 索引管理接口 ====================
 
 @router.post("/index", response_model=IndexInfo)
@@ -118,11 +169,14 @@ async def create_index(request: CreateIndexRequest):
         logger.info(f"📝 创建索引请求: {request.name}")
         
         # 检查目录是否存在
-        directory_path = Path(request.directory_path)
+        directory_path = _resolve_source_directory(
+            directory_path=request.directory_path,
+            uploaded_subdir=request.uploaded_subdir,
+        )
         if not directory_path.exists():
             raise HTTPException(
                 status_code=404,
-                detail=f"目录不存在: {request.directory_path}"
+                detail=f"目录不存在: {directory_path}"
             )
         
         # 检查索引是否已存在
@@ -248,6 +302,102 @@ async def delete_index(name: str):
         raise
     except Exception as e:
         logger.error(f"❌ 删除索引失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/upload", response_model=UploadDocumentsResponse)
+async def upload_documents(
+    files: List[UploadFile] = File(..., description="待上传的文档文件"),
+):
+    """
+    上传文档到后端上传目录
+
+    用于前端“上传资料建库”的第一步。
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="未提供上传文件")
+
+    upload_root = (BACKEND_BASE_DIR / settings.data_uploads_path).resolve()
+    batch_name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    target_dir = upload_root / batch_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_files: List[UploadedFileInfo] = []
+
+    try:
+        for upload in files:
+            if not upload.filename:
+                continue
+
+            safe_name = Path(upload.filename).name
+            destination = target_dir / safe_name
+
+            with destination.open("wb") as buffer:
+                shutil.copyfileobj(upload.file, buffer)
+
+            saved_files.append(
+                UploadedFileInfo(
+                    filename=safe_name,
+                    saved_path=str(destination),
+                    size_bytes=destination.stat().st_size,
+                )
+            )
+
+        if not saved_files:
+            raise HTTPException(status_code=400, detail="没有可保存的有效文件")
+
+        return UploadDocumentsResponse(
+            success=True,
+            message=f"成功上传 {len(saved_files)} 个文件",
+            target_directory=batch_name,
+            files=saved_files,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 上传文档失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        for upload in files:
+            await upload.close()
+
+
+@router.post("/index/{name}/update", response_model=IndexInfo)
+async def update_index(name: str, request: UpdateIndexRequest):
+    """
+    向已有索引增量添加文档
+    """
+    try:
+        if not index_manager.index_exists(name):
+            raise HTTPException(status_code=404, detail=f"索引不存在: {name}")
+
+        source_directory = _resolve_source_directory(
+            directory_path=request.directory_path,
+            uploaded_subdir=request.uploaded_subdir,
+        )
+        if not source_directory.exists():
+            raise HTTPException(status_code=404, detail=f"目录不存在: {source_directory}")
+
+        logger.info(f"📂 增量更新索引 {name}: {source_directory}")
+        documents = load_directory(str(source_directory))
+        if not documents:
+            raise HTTPException(status_code=400, detail="目录中没有找到支持的文档")
+
+        chunks = split_documents(
+            documents,
+            chunk_size=request.chunk_size,
+            chunk_overlap=request.chunk_overlap,
+        )
+        embeddings = get_embeddings()
+        index_manager.update_index(name=name, documents=chunks, embeddings=embeddings)
+        index_info = index_manager.get_index_info(name)
+        return IndexInfo(**index_info)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 更新索引失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

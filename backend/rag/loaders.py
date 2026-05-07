@@ -24,6 +24,7 @@ from langchain_community.document_loaders import (
     TextLoader,
     UnstructuredMarkdownLoader,
     UnstructuredHTMLLoader,
+    UnstructuredWordDocumentLoader,
     JSONLoader,
     DirectoryLoader,
 )
@@ -36,6 +37,7 @@ logger = get_logger(__name__)
 # 支持的文件扩展名映射
 SUPPORTED_EXTENSIONS = {
     ".pdf": "pdf",
+    ".docx": "word",
     ".txt": "text",
     ".md": "markdown",
     ".mdx": "markdown",
@@ -86,6 +88,8 @@ def get_loader_for_file(file_path: str) -> Optional[Any]:
     try:
         if file_type == "pdf":
             return PyPDFLoader(str(file_path))
+        elif file_type == "word":
+            return UnstructuredWordDocumentLoader(str(file_path))
         elif file_type == "text":
             return TextLoader(str(file_path), encoding="utf-8")
         elif file_type == "markdown":
